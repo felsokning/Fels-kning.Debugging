@@ -55,8 +55,10 @@ namespace Felsökning.Debugging.Tests
             processStartInfo.RedirectStandardOutput = false;
             processStartInfo.RedirectStandardError = false;
             processStartInfo.RedirectStandardInput = false;
-
-            var sut = Process.Start(processStartInfo);
+            var sut = new Process();
+            sut.OutputDataReceived += (s, e) => { };
+            sut.StartInfo = processStartInfo;
+            sut.Start();
 
             // Sleep required due to JIT'ing timing[s].
             await Task.Delay(TimeSpan.FromSeconds(1));
