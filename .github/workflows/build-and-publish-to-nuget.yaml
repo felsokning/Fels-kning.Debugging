@@ -1,0 +1,42 @@
+name: Build and Publish on MultiNet Container
+
+# Required Since Release Creation in GitHub (itself) doesn't create a push (not remote)
+on:
+  release:
+    types:
+    - created
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: felsokning/multinet:latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: .NET Restore
+        run: dotnet restore --verbosity=normal
+      - name: .NET Build
+        run: dotnet build --no-restore --verbosity=normal
+      - name: .NET Test
+        run: dotnet test --no-restore --no-build --verbosity=normal --collect:"XPlat Code Coverage" --logger:trx --results-directory coverage
+      - name: Copy Coverage To Predictable Location
+        run: cp coverage/*/coverage.cobertura.xml coverage/coverage.cobertura.xml
+      - name: Code Coverage Summary Report
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: coverage/coverage.cobertura.xml
+          badge: true
+          format: 'markdown'
+          output: 'both'
+      # - name: Add Coverage PR Comment
+      #   uses: marocchino/sticky-pull-request-comment@v2
+      #   if: github.event_name == 'pull_request'
+      #   with:
+      #     recreate: true
+      #     path: code-coverage-results.md
+      - name: Adding markdown to build summary
+        run: cat code-coverage-results.md >> $GITHUB_STEP_SUMMARY
+      - name: .NET Pack
+        run: dotnet pack /p:Version=${{ github.event.release.tag_name }}
+      - name: Push to NuGet
+        run: dotnet nuget push "**/*.nupkg" --api-key ${{ secrets.NUGET_API_TOKEN }} --source https://api.nuget.org/v3/index.json
